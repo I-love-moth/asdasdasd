@@ -1,0 +1,666 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ACCESS TERMINAL v2.7.7</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Orbitron:wght@400;700;900&display=swap');
+
+  :root {
+    --neon-cyan: #00f5ff;
+    --neon-pink: #ff006e;
+    --neon-yellow: #ffea00;
+    --dark: #050a0e;
+    --dark2: #0a1520;
+    --grid: #0d2137;
+    --text-dim: #1a4a6a;
+    --glow-cyan: 0 0 10px #00f5ff, 0 0 20px #00f5ff, 0 0 40px #00f5ff55;
+    --glow-pink: 0 0 10px #ff006e, 0 0 20px #ff006e, 0 0 40px #ff006e55;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: var(--dark);
+    color: var(--neon-cyan);
+    font-family: 'Share Tech Mono', monospace;
+    min-height: 100vh;
+    overflow: hidden;
+    position: relative;
+  }
+
+  /* Scanlines */
+  body::before {
+    content: '';
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: repeating-linear-gradient(
+      0deg,
+      transparent,
+      transparent 2px,
+      rgba(0,0,0,0.15) 2px,
+      rgba(0,0,0,0.15) 4px
+    );
+    pointer-events: none;
+    z-index: 1000;
+    animation: scanline 8s linear infinite;
+  }
+
+  @keyframes scanline {
+    0% { background-position: 0 0; }
+    100% { background-position: 0 100vh; }
+  }
+
+  /* Grid background */
+  .grid-bg {
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background-image:
+      linear-gradient(var(--grid) 1px, transparent 1px),
+      linear-gradient(90deg, var(--grid) 1px, transparent 1px);
+    background-size: 40px 40px;
+    animation: gridMove 20s linear infinite;
+  }
+
+  @keyframes gridMove {
+    0% { transform: perspective(500px) rotateX(5deg) translateY(0); }
+    100% { transform: perspective(500px) rotateX(5deg) translateY(40px); }
+  }
+
+  /* Pages */
+  .page {
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    z-index: 10;
+    transition: opacity 0.5s;
+  }
+
+  .page.hidden {
+    opacity: 0;
+    pointer-events: none;
+  }
+
+  /* ===== PAGE 1: LOGIN ===== */
+  .terminal-frame {
+    border: 1px solid var(--neon-cyan);
+    box-shadow: var(--glow-cyan), inset 0 0 30px rgba(0,245,255,0.05);
+    padding: 40px;
+    width: 480px;
+    position: relative;
+    background: rgba(5, 20, 35, 0.9);
+    animation: frameFlicker 6s ease-in-out infinite;
+  }
+
+  @keyframes frameFlicker {
+    0%, 95%, 100% { opacity: 1; }
+    96% { opacity: 0.8; }
+    97% { opacity: 1; }
+    98% { opacity: 0.6; }
+    99% { opacity: 1; }
+  }
+
+  .frame-corner {
+    position: absolute;
+    width: 20px; height: 20px;
+    border-color: var(--neon-pink);
+    border-style: solid;
+  }
+  .frame-corner.tl { top: -1px; left: -1px; border-width: 2px 0 0 2px; }
+  .frame-corner.tr { top: -1px; right: -1px; border-width: 2px 2px 0 0; }
+  .frame-corner.bl { bottom: -1px; left: -1px; border-width: 0 0 2px 2px; }
+  .frame-corner.br { bottom: -1px; right: -1px; border-width: 0 2px 2px 0; }
+
+  .terminal-header {
+    text-align: center;
+    margin-bottom: 30px;
+  }
+
+  .logo {
+    font-family: 'Orbitron', sans-serif;
+    font-size: 28px;
+    font-weight: 900;
+    letter-spacing: 8px;
+    color: var(--neon-cyan);
+    text-shadow: var(--glow-cyan);
+    animation: logoPulse 3s ease-in-out infinite;
+  }
+
+  @keyframes logoPulse {
+    0%, 100% { text-shadow: var(--glow-cyan); }
+    50% { text-shadow: 0 0 20px #00f5ff, 0 0 40px #00f5ff, 0 0 80px #00f5ff; }
+  }
+
+  .subtitle {
+    font-size: 11px;
+    color: var(--neon-pink);
+    letter-spacing: 4px;
+    margin-top: 6px;
+    text-shadow: var(--glow-pink);
+  }
+
+  .divider {
+    height: 1px;
+    background: linear-gradient(90deg, transparent, var(--neon-cyan), transparent);
+    margin: 20px 0;
+    opacity: 0.6;
+  }
+
+  .prompt-line {
+    font-size: 11px;
+    color: #3a7a9a;
+    margin-bottom: 20px;
+    letter-spacing: 1px;
+  }
+
+  .prompt-line span { color: var(--neon-yellow); }
+
+  .input-group {
+    position: relative;
+    margin-bottom: 20px;
+  }
+
+  .input-label {
+    font-size: 11px;
+    color: var(--neon-pink);
+    letter-spacing: 3px;
+    margin-bottom: 8px;
+    display: block;
+  }
+
+  .cyber-input {
+    width: 100%;
+    background: rgba(0, 245, 255, 0.04);
+    border: 1px solid var(--neon-cyan);
+    border-left: 3px solid var(--neon-pink);
+    color: var(--neon-cyan);
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 18px;
+    padding: 12px 16px;
+    outline: none;
+    letter-spacing: 4px;
+    transition: all 0.2s;
+    -webkit-text-security: disc;
+  }
+
+  .cyber-input:focus {
+    box-shadow: var(--glow-cyan);
+    background: rgba(0, 245, 255, 0.08);
+  }
+
+  .cyber-input.error {
+    border-color: var(--neon-pink);
+    animation: shake 0.4s ease;
+    box-shadow: var(--glow-pink);
+  }
+
+  @keyframes shake {
+    0%, 100% { transform: translateX(0); }
+    20% { transform: translateX(-8px); }
+    40% { transform: translateX(8px); }
+    60% { transform: translateX(-4px); }
+    80% { transform: translateX(4px); }
+  }
+
+  .cyber-btn {
+    width: 100%;
+    background: transparent;
+    border: 1px solid var(--neon-cyan);
+    color: var(--neon-cyan);
+    font-family: 'Orbitron', sans-serif;
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: 6px;
+    padding: 14px;
+    cursor: pointer;
+    position: relative;
+    overflow: hidden;
+    transition: all 0.3s;
+    text-transform: uppercase;
+  }
+
+  .cyber-btn::before {
+    content: '';
+    position: absolute;
+    top: 0; left: -100%;
+    width: 100%; height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(0,245,255,0.2), transparent);
+    transition: left 0.4s;
+  }
+
+  .cyber-btn:hover::before { left: 100%; }
+  .cyber-btn:hover {
+    box-shadow: var(--glow-cyan);
+    background: rgba(0,245,255,0.1);
+    letter-spacing: 8px;
+  }
+
+  .error-msg {
+    font-size: 11px;
+    color: var(--neon-pink);
+    text-shadow: var(--glow-pink);
+    letter-spacing: 2px;
+    margin-top: 10px;
+    min-height: 16px;
+    animation: blink 1s step-end infinite;
+  }
+
+  @keyframes blink {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0; }
+  }
+
+  .status-bar {
+    display: flex;
+    justify-content: space-between;
+    font-size: 9px;
+    color: var(--text-dim);
+    margin-top: 20px;
+    letter-spacing: 1px;
+  }
+
+  .status-dot {
+    display: inline-block;
+    width: 6px; height: 6px;
+    background: #00ff41;
+    border-radius: 50%;
+    margin-right: 5px;
+    animation: dotPulse 2s ease-in-out infinite;
+  }
+
+  @keyframes dotPulse {
+    0%, 100% { opacity: 1; box-shadow: 0 0 4px #00ff41; }
+    50% { opacity: 0.3; box-shadow: none; }
+  }
+
+  /* ===== PAGE 2: LOADING ===== */
+  #page2 {
+    background: var(--dark);
+  }
+
+  .load-container {
+    width: 700px;
+    max-width: 95vw;
+    font-size: 13px;
+    line-height: 1.8;
+  }
+
+  .load-header {
+    font-family: 'Orbitron', sans-serif;
+    font-size: 22px;
+    font-weight: 900;
+    color: var(--neon-pink);
+    text-shadow: var(--glow-pink);
+    letter-spacing: 6px;
+    margin-bottom: 6px;
+    text-align: center;
+  }
+
+  .load-sub {
+    text-align: center;
+    font-size: 10px;
+    color: #3a7a9a;
+    letter-spacing: 4px;
+    margin-bottom: 30px;
+  }
+
+  .log-window {
+    background: rgba(5, 15, 25, 0.95);
+    border: 1px solid #0d3050;
+    border-left: 3px solid var(--neon-pink);
+    padding: 20px;
+    height: 280px;
+    overflow-y: auto;
+    margin-bottom: 20px;
+    scrollbar-width: thin;
+    scrollbar-color: var(--neon-pink) var(--dark2);
+  }
+
+  .log-line {
+    display: none;
+    margin-bottom: 3px;
+    animation: fadeIn 0.2s ease;
+  }
+
+  .log-line.show { display: block; }
+
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateX(-10px); }
+    to { opacity: 1; transform: translateX(0); }
+  }
+
+  .log-line .ts { color: #1a4a6a; margin-right: 10px; }
+  .log-line .ok { color: #00ff41; }
+  .log-line .warn { color: var(--neon-yellow); }
+  .log-line .err { color: var(--neon-pink); }
+  .log-line .info { color: var(--neon-cyan); }
+  .log-line .dim { color: #2a5a7a; }
+
+  /* Progress bars */
+  .progress-section {
+    margin-bottom: 16px;
+  }
+
+  .progress-label {
+    display: flex;
+    justify-content: space-between;
+    font-size: 10px;
+    letter-spacing: 2px;
+    margin-bottom: 5px;
+  }
+
+  .progress-label .name { color: var(--neon-cyan); }
+  .progress-label .pct { color: var(--neon-yellow); }
+
+  .progress-bar-bg {
+    height: 8px;
+    background: #0a1a2a;
+    border: 1px solid #0d3050;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .progress-bar-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--neon-pink), var(--neon-cyan));
+    width: 0%;
+    transition: width 0.1s linear;
+    box-shadow: 0 0 10px var(--neon-cyan);
+    position: relative;
+  }
+
+  .progress-bar-fill::after {
+    content: '';
+    position: absolute;
+    right: 0; top: 0;
+    width: 20px; height: 100%;
+    background: white;
+    opacity: 0.6;
+    filter: blur(4px);
+  }
+
+  /* Final message */
+  .final-msg {
+    display: none;
+    text-align: center;
+    padding: 20px;
+    border: 1px solid var(--neon-pink);
+    box-shadow: var(--glow-pink);
+    animation: finalPulse 1s ease-in-out infinite;
+  }
+
+  @keyframes finalPulse {
+    0%, 100% { box-shadow: var(--glow-pink); }
+    50% { box-shadow: 0 0 30px #ff006e, 0 0 60px #ff006e88; }
+  }
+
+  .final-msg .big {
+    font-family: 'Orbitron', sans-serif;
+    font-size: 18px;
+    font-weight: 900;
+    color: var(--neon-pink);
+    letter-spacing: 6px;
+    text-shadow: var(--glow-pink);
+  }
+
+  .final-msg .small {
+    font-size: 11px;
+    color: #ff669a;
+    letter-spacing: 2px;
+    margin-top: 6px;
+  }
+
+  /* Glitch effect on final */
+  @keyframes glitch {
+    0%, 90%, 100% { text-shadow: var(--glow-pink); transform: none; }
+    91% { text-shadow: 3px 0 var(--neon-cyan), -3px 0 var(--neon-yellow); transform: translateX(2px); }
+    93% { text-shadow: -3px 0 var(--neon-cyan), 3px 0 var(--neon-yellow); transform: translateX(-2px); }
+    95% { text-shadow: var(--glow-pink); transform: none; }
+  }
+
+  .glitch-text {
+    animation: glitch 4s ease-in-out infinite;
+  }
+
+  /* Particles */
+  .particle {
+    position: fixed;
+    width: 2px; height: 2px;
+    background: var(--neon-cyan);
+    border-radius: 50%;
+    pointer-events: none;
+    animation: particleFall linear infinite;
+    opacity: 0.3;
+  }
+
+  @keyframes particleFall {
+    0% { transform: translateY(-10px); opacity: 0.5; }
+    100% { transform: translateY(100vh); opacity: 0; }
+  }
+</style>
+</head>
+<body>
+
+<div class="grid-bg"></div>
+
+<!-- PAGE 1: LOGIN -->
+<div class="page" id="page1">
+  <div class="terminal-frame">
+    <div class="frame-corner tl"></div>
+    <div class="frame-corner tr"></div>
+    <div class="frame-corner bl"></div>
+    <div class="frame-corner br"></div>
+
+    <div class="terminal-header">
+      <div class="logo">NEXUS//07</div>
+      <div class="subtitle">RESTRICTED ACCESS TERMINAL</div>
+    </div>
+
+    <div class="divider"></div>
+
+    <div class="prompt-line">
+      &gt; SYSTEM: <span>LOCKED</span> &nbsp;|&nbsp; NODE: <span>NEO-TOKYO-03</span>
+    </div>
+
+    <div class="input-group">
+      <label class="input-label">// ПАРОЛЬ ДОСТУПА</label>
+      <input
+        class="cyber-input"
+        id="passInput"
+        type="password"
+        autocomplete="off"
+        spellcheck="false"
+        maxlength="20"
+        placeholder="_ _ _ _ _ _ _ _"
+      />
+    </div>
+
+    <button class="cyber-btn" id="loginBtn" onclick="tryLogin()">
+      ВОЙТИ В СИСТЕМУ
+    </button>
+
+    <div class="error-msg" id="errMsg"></div>
+
+    <div class="divider"></div>
+
+    <div class="status-bar">
+      <span><span class="status-dot"></span>ONLINE</span>
+      <span id="clock"></span>
+      <span>ENCRYPT: AES-256</span>
+    </div>
+  </div>
+</div>
+
+<!-- PAGE 2: LOADING -->
+<div class="page hidden" id="page2">
+  <div class="load-container">
+    <div class="load-header glitch-text">◈ NEXUS OPERATIVE ◈</div>
+    <div class="load-sub">INITIALIZING DEEP PROTOCOL // CLEARANCE LVL-9</div>
+
+    <div class="log-window" id="logWindow"></div>
+
+    <div class="progress-section">
+      <div class="progress-label">
+        <span class="name">▸ ЗАГРУЗКА МОДУЛЕЙ</span>
+        <span class="pct" id="pct1">0%</span>
+      </div>
+      <div class="progress-bar-bg">
+        <div class="progress-bar-fill" id="bar1"></div>
+      </div>
+    </div>
+
+    <div class="progress-section">
+      <div class="progress-label">
+        <span class="name">▸ УНИЧТОЖЕНИЕ СЛЕДОВ</span>
+        <span class="pct" id="pct2">0%</span>
+      </div>
+      <div class="progress-bar-bg">
+        <div class="progress-bar-fill" id="bar2"></div>
+      </div>
+    </div>
+
+    <div class="final-msg" id="finalMsg">
+      <div class="big">// ОПЕРАЦИЯ ЗАВЕРШЕНА //</div>
+      <div class="small">СЛЕДЫ УНИЧТОЖЕНЫ &nbsp;|&nbsp; СИСТЕМА ОЧИЩЕНА &nbsp;|&nbsp; ВЫХОД ЧЕРЕЗ 10с</div>
+    </div>
+  </div>
+</div>
+
+<script>
+  // === ПАРОЛЬ ===
+  const CORRECT_PASSWORD = 'cyber2077';
+
+  // Часы
+  function updateClock() {
+    const now = new Date();
+    const t = now.toTimeString().slice(0,8);
+    document.getElementById('clock').textContent = t;
+  }
+  setInterval(updateClock, 1000);
+  updateClock();
+
+  // Частицы
+  function spawnParticles() {
+    for (let i = 0; i < 25; i++) {
+      const p = document.createElement('div');
+      p.className = 'particle';
+      p.style.left = Math.random() * 100 + 'vw';
+      p.style.animationDuration = (5 + Math.random() * 15) + 's';
+      p.style.animationDelay = (Math.random() * 10) + 's';
+      p.style.opacity = (0.1 + Math.random() * 0.3).toString();
+      document.body.appendChild(p);
+    }
+  }
+  spawnParticles();
+
+  // Enter key
+  document.getElementById('passInput').addEventListener('keydown', e => {
+    if (e.key === 'Enter') tryLogin();
+  });
+
+  function tryLogin() {
+    const val = document.getElementById('passInput').value;
+    const input = document.getElementById('passInput');
+    const err = document.getElementById('errMsg');
+
+    if (val === CORRECT_PASSWORD) {
+      err.textContent = '';
+      document.getElementById('page1').style.opacity = '0';
+      setTimeout(() => {
+        document.getElementById('page1').classList.add('hidden');
+        document.getElementById('page2').classList.remove('hidden');
+        startLoadSequence();
+      }, 600);
+    } else {
+      input.classList.add('error');
+      err.textContent = '⚠ ДОСТУП ЗАПРЕЩЁН — НЕВЕРНЫЙ КОД';
+      setTimeout(() => input.classList.remove('error'), 500);
+      // Scramble input
+      input.value = '';
+    }
+  }
+
+  // === LOADING SEQUENCE ===
+  const logs = [
+    { delay: 200,  cls: 'info', text: 'Инициализация ядра NEXUS v2.7.7...' },
+    { delay: 600,  cls: 'ok',   text: '[OK] Аутентификация подтверждена' },
+    { delay: 1000, cls: 'dim',  text: 'Загрузка пакетов: core.bin, shadow.dll, eraser.exe' },
+    { delay: 1400, cls: 'warn', text: '[!] Обнаружены следящие узлы: 14' },
+    { delay: 1800, cls: 'info', text: 'Запуск модуля обхода FireWall...' },
+    { delay: 2200, cls: 'ok',   text: '[OK] FireWall обойден — маршрут проложен' },
+    { delay: 2700, cls: 'dim',  text: 'Монтирование виртуального диска /dev/shadow0' },
+    { delay: 3100, cls: 'ok',   text: '[OK] Диск смонтирован [READ/WRITE]' },
+    { delay: 3500, cls: 'info', text: 'Инъекция payload в системный процесс...' },
+    { delay: 3900, cls: 'ok',   text: '[OK] Payload активен — PID: 7749' },
+    { delay: 4300, cls: 'warn', text: '[!] Трафик зашифрован — TOR-сеть подключена' },
+    { delay: 4700, cls: 'dim',  text: 'Сканирование лог-файлов: /var/log/sys  /tmp/trace' },
+    { delay: 5200, cls: 'err',  text: '[DEL] Удаление: auth.log — 4,322 записи' },
+    { delay: 5600, cls: 'err',  text: '[DEL] Удаление: access.log — 19,847 записей' },
+    { delay: 6000, cls: 'err',  text: '[DEL] Удаление: .bash_history — 1,200 команд' },
+    { delay: 6400, cls: 'err',  text: '[DEL] Перезапись: /tmp/trace — 3 прохода (DoD 5220.22M)' },
+    { delay: 6900, cls: 'ok',   text: '[OK] Логи уничтожены — следов не обнаружено' },
+    { delay: 7300, cls: 'dim',  text: 'Генерация ложных метаданных...' },
+    { delay: 7700, cls: 'ok',   text: '[OK] Ложный след создан: IP 45.133.xx.xx (Tokyo)' },
+    { delay: 8200, cls: 'warn', text: '[!] Инициирован аварийный выход...' },
+    { delay: 8600, cls: 'ok',   text: '[OK] Соединение разорвано' },
+    { delay: 9000, cls: 'info', text: 'Финальная проверка систем...' },
+    { delay: 9400, cls: 'ok',   text: '████████████████ 100% — ГОТОВО' },
+  ];
+
+  function addLog(cls, text) {
+    const win = document.getElementById('logWindow');
+    const line = document.createElement('div');
+    line.className = 'log-line show';
+    const now = new Date();
+    const ts = now.toTimeString().slice(0,8);
+    line.innerHTML = `<span class="ts">[${ts}]</span><span class="${cls}">${text}</span>`;
+    win.appendChild(line);
+    win.scrollTop = win.scrollHeight;
+  }
+
+  function animateBar(barId, pctId, targetPct, duration) {
+    const bar = document.getElementById(barId);
+    const pct = document.getElementById(pctId);
+    let current = parseFloat(bar.style.width) || 0;
+    const steps = 40;
+    const increment = (targetPct - current) / steps;
+    const interval = duration / steps;
+    let step = 0;
+    const timer = setInterval(() => {
+      step++;
+      current += increment;
+      if (current >= targetPct) { current = targetPct; clearInterval(timer); }
+      bar.style.width = current + '%';
+      pct.textContent = Math.round(current) + '%';
+    }, interval);
+  }
+
+  function startLoadSequence() {
+    logs.forEach(({ delay, cls, text }) => {
+      setTimeout(() => addLog(cls, text), delay);
+    });
+
+    // Bar 1: loading modules 0→100% over ~5s
+    setTimeout(() => animateBar('bar1', 'pct1', 30,  500), 1000);
+    setTimeout(() => animateBar('bar1', 'pct1', 60,  800), 2000);
+    setTimeout(() => animateBar('bar1', 'pct1', 85,  600), 3500);
+    setTimeout(() => animateBar('bar1', 'pct1', 100, 400), 4500);
+
+    // Bar 2: destroy traces 0→100% starting later
+    setTimeout(() => animateBar('bar2', 'pct2', 20,  500), 4800);
+    setTimeout(() => animateBar('bar2', 'pct2', 55,  700), 5500);
+    setTimeout(() => animateBar('bar2', 'pct2', 80,  600), 6500);
+    setTimeout(() => animateBar('bar2', 'pct2', 100, 500), 7500);
+
+    // Final message
+    setTimeout(() => {
+      document.getElementById('finalMsg').style.display = 'block';
+    }, 9600);
+  }
+</script>
+</body>
+</html>
